@@ -1,0 +1,103 @@
+---
+
+x-common-db: &dbenv
+  POSTGRES_USER: zabbix 
+  POSTGRES_PASSWORD: 'zabbix'
+  
+x-common-db-zabbix: &dbenvzabbix
+  <<: *dbenv
+  DB_SERVER_HOST: postgres-server
+  DB_SERVER_PORT: 5432
+  POSTGRES_DB: zabbix
+
+services:
+
+  zabbix-web-nginx:
+    container_name: zabbix-web-nginx
+    hostname: zabbix-web-nginx
+    image: zabbix/zabbix-web-nginx-pgsql:7.4.2-ubuntu
+    environment:
+      <<: *dbenvzabbix
+      ZBX_SERVER_NAME: Zabbix in Docker
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_SERVER_PORT: 10051
+      PHP_TZ: 'Europe/Moscow'
+    ports:
+      - 127.0.0.1:8080:8080
+    restart: unless-stopped
+    cpus: '1.0'
+    mem_limit: 512M
+    mem_reservation: 256M
+    depends_on:
+      - postgres-server
+      - zabbix-server
+    logging: &logging
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+  zabbix-server:
+    container_name: zabbix-server-pgsql
+    hostname: zabbix-server
+    image: zabbix/zabbix-server-pgsql:7.4.2-ubuntu
+    environment:
+      <<: *dbenvzabbix
+      ZBX_CACHESIZE: 256M
+      ZBX_STARTPOLLERS: 20
+      ZBX_VALUECACHESIZE: 32M
+      ZBX_LOGSLOWQUERIES: 3000
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./.zabbix-data/alertscripts:/usr/lib/zabbix/alertscripts:ro
+      - ./.zabbix-data/externalscripts:/usr/lib/zabbix/externalscripts:ro
+      - ./.zabbix-data/export:/var/lib/zabbix/export:rw
+      - ./.zabbix-data/modules:/var/lib/zabbix/modules:ro
+      - ./.zabbix-data/enc:/var/lib/zabbix/enc:ro
+      - ./.zabbix-data/ssh_keys:/var/lib/zabbix/ssh_keys:ro
+      - ./.zabbix-data/mibs:/var/lib/zabbix/mibs:ro
+      - ./.zabbix-data/ssl/certs:/var/lib/zabbix/ssl/certs:ro
+      - ./.zabbix-data/ssl/keys:/var/lib/zabbix/ssl/keys:ro
+      - ./.zabbix-data/ssl/ssl_ca:/var/lib/zabbix/ssl/ssl_ca:rw
+      - ./.zabbix-data/snmtptraps:/var/lib/zabbix/snmptraps:roz
+    ports:
+      - 10051:10051
+    cpus: '1.0'
+    mem_limit: 1G
+    mem_reservation: 512M
+    tmpfs: /tmp
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+    stop_grace_period: 30s
+    sysctls:
+      - net.ipv4.ip_local_port_range=1024 64999
+      - net.ipv4.conf.all.accept_redirects=0
+      - net.ipv4.conf.all.secure_redirects=0
+      - net.ipv4.conf.all.send_redirects=0
+    restart: unless-stopped
+    depends_on:
+       - postgres-server
+    logging:
+      <<: *logging
+      
+  postgres-server:
+    container_name: zabbix-postgres-server
+    hostname: postgres-server
+    image: postgres:17
+    shm_size: '4gb'
+    environment:
+      <<: *dbenv
+    volumes:
+      - ./.db_data:/var/lib/postgresql/data:rw
+    sysctls:
+      - net.ipv4.tcp_keepalive_time=600
+      - net.ipv4.tcp_keepalive_intvl=60
+      - net.ipv4.tcp_keepalive_probes=5
+    restart: unless-stopped
+    cpus: '1.0'
+    mem_limit: 1.5G
+    mem_reservation: 512M
+    logging:
+      <<: *logging
