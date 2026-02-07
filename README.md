@@ -11,6 +11,7 @@ Including:
 
 # To do list
 1. Compose project use mounted volumes. You must create appropriate folders before deploying
+
 For zabbix-server:
 - ./.zabbix-data/alertscripts
 - ./.zabbix-data/externalscripts
@@ -33,5 +34,7 @@ For Posrgres DB:
 
 # Opt
 If you wonna deploy zabbix throught reverse proxy, for example, Nginx, you could use example config from zabbix_nginx_proxy.conf
+
 For HTTPS you could use Let's encrypt cert. 
+
 Install certbot for your OS and use this command ONLY for Nginx: 'certbot --nginx -d "zabbix.example.com"'
